@@ -1,0 +1,125 @@
+const int LED_PIN_G = 11; //verde 
+const int LED_PIN_R = 13; //vermelho 
+const int BTN_PIN = 3; 
+const int ROLO1_PIN = 7; 
+const int ROLO2_PIN = 8; 
+const int ROLO3_PIN = 9; 
+
+unsigned long tempoacao; 
+const unsigned long tempoInativo = 5000; 
+bool op = false; 
+
+unsigned long corrida1 = 0; 
+unsigned long corrida2 = 0; 
+unsigned long corrida3 = 0; 
+
+unsigned long TempoRolo1 = 0; 
+unsigned long TempoRolo2 = 0; 
+unsigned long TempoRolo3 = 0; 
+
+// AUMENTADO PARA 50ms: Evita leituras duplicadas pelo ruído mecânico dos fios se batendo
+const unsigned long tempoDebounce = 50; 
+
+int estadoAtual1 = HIGH; 
+int estadoAtual2 = HIGH; 
+int estadoAtual3 = HIGH; 
+
+void setup() { 
+  Serial.begin(9600); 
+  Serial.println("--- JOGO DO CACA-NIQUEIS PRONTO ---"); 
+  Serial.println("Aperte o botao de inicio para comecar..."); 
+  
+  pinMode(LED_PIN_G, OUTPUT); 
+  pinMode(LED_PIN_R, OUTPUT); 
+  
+  pinMode(BTN_PIN, INPUT_PULLUP); 
+  pinMode(ROLO1_PIN, INPUT_PULLUP); 
+  pinMode(ROLO2_PIN, INPUT_PULLUP); 
+  pinMode(ROLO3_PIN, INPUT_PULLUP); 
+} 
+
+void loop() { 
+  if (op == false) { 
+    op = true; 
+    Serial.println("\n-> JOGO INICIADO! Tempo correndo..."); 
+    
+    tempoacao = millis(); 
+    
+    while (millis() - tempoacao <= tempoInativo) { 
+      unsigned long tempoAtual = millis();
+      
+      int state1 = (PIND & (1 << 7)) ? HIGH : LOW; 
+      int state2 = (PINB & (1 << 0)) ? HIGH : LOW; 
+      int state3 = (PINB & (1 << 1)) ? HIGH : LOW; 
+
+      // --- ROLO 1 --- 
+      if ((tempoAtual - TempoRolo1) > tempoDebounce) { 
+        if (state1 != estadoAtual1) {
+          estadoAtual1 = state1; 
+          TempoRolo1 = tempoAtual; 
+          
+          // TRAVA: Só conta se mudou para LOW (fios se tocaram)
+          if (estadoAtual1 == LOW) { 
+            corrida1++; 
+            Serial.print("rolo1:"); 
+            Serial.println(corrida1); 
+            tempoacao = tempoAtual; 
+          } 
+        }
+      } 
+
+      // --- ROLO 2 --- 
+      if ((tempoAtual - TempoRolo2) > tempoDebounce) { 
+        if (state2 != estadoAtual2) { 
+          estadoAtual2 = state2; 
+          TempoRolo2 = tempoAtual;
+          
+          // TRAVA: Só conta se mudou para LOW
+          if (estadoAtual2 == LOW) { 
+            corrida2++; 
+            Serial.print("rolo2:"); 
+            Serial.println(corrida2);
+            tempoacao = tempoAtual;  
+          } 
+        }
+      } 
+
+      // --- ROLO 3 --- 
+      if ((tempoAtual - TempoRolo3) > tempoDebounce) { 
+        if (state3 != estadoAtual3) { 
+          estadoAtual3 = state3; 
+          TempoRolo3 = tempoAtual;
+          
+          // TRAVA: Só conta se mudou para LOW
+          if (estadoAtual3 == LOW) { 
+            corrida3++; 
+            Serial.print("rolo3:"); 
+            Serial.println(corrida3); 
+            tempoacao = tempoAtual; 
+          } 
+        }
+      } 
+    } 
+
+    Serial.println("--- TEMPO ESGOTADO! ---"); 
+    Serial.print("Resultados finais (Resto por 4) -> "); 
+    Serial.print("R1: "); Serial.print(corrida1 % 4); 
+    Serial.print(" | R2: "); Serial.print(corrida2 % 4); 
+    Serial.print(" | R3: "); Serial.println(corrida3 % 4); 
+
+    if (corrida1 % 4 == corrida2 % 4 && corrida2 % 4 == corrida3 % 4) { 
+      Serial.println(">>> RESULTADO: VOCE GANHOU! <<<"); 
+      digitalWrite(LED_PIN_G, HIGH); 
+      delay(3000); 
+      digitalWrite(LED_PIN_G, LOW); 
+    } else { 
+      Serial.println(">>> RESULTADO: VOCE PERDEU! <<<"); 
+      digitalWrite(LED_PIN_R, HIGH); 
+      delay(3000); 
+      digitalWrite(LED_PIN_R, LOW); 
+    } 
+    
+    Serial.println("\nAguardando novo jogo..."); 
+    op = false; 
+  } 
+}
